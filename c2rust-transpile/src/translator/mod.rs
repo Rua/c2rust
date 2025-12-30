@@ -59,8 +59,8 @@ pub use crate::diagnostics::{TranslationError, TranslationErrorKind};
 use crate::CrateSet;
 use crate::PragmaVec;
 
-pub const INNER_SUFFIX: &str = "_Inner";
-pub const PADDING_SUFFIX: &str = "_PADDING";
+pub const INNER_SUFFIX: &str = "_C2RustInner";
+pub const PADDING_SUFFIX: &str = "_C2RustPADDING";
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 struct Import {
@@ -1646,7 +1646,7 @@ impl<'c> Translation<'c> {
         let fn_name = self
             .renamer
             .borrow_mut()
-            .pick_name("run_static_initializers");
+            .pick_name("c2rust_run_static_initializers");
         let fn_ty = ReturnType::Default;
         let fn_decl = mk().fn_decl(fn_name.clone(), vec![], None, fn_ty.clone());
         let fn_bare_decl = (vec![], None, fn_ty);
@@ -1792,9 +1792,9 @@ impl<'c> Translation<'c> {
                     // which Rust doesn't currently support; instead, we split
                     // the structure into 2 structures like this:
                     //   #[align(N)]
-                    //   pub struct Foo(pub Foo_Inner);
+                    //   pub struct Foo(pub Foo_C2RustInner);
                     //   #[packed(M)]
-                    //   pub struct Foo_Inner {
+                    //   pub struct Foo_C2RustInner {
                     //     ...fields...
                     //   }
                     //
@@ -1827,7 +1827,7 @@ impl<'c> Translation<'c> {
                         )
                         .struct_item(name, vec![outer_field], true);
 
-                    // Emit `const X_PADDING: usize = size_of(Outer) - size_of(Inner);`
+                    // Emit `const X_C2RustPADDING: usize = size_of(Outer) - size_of(Inner);`
                     let padding_name = self
                         .type_converter
                         .borrow_mut()
@@ -2172,7 +2172,7 @@ impl<'c> Translation<'c> {
 
                     let mut init = init?.to_expr();
 
-                    let comment = String::from("// Initialized in run_static_initializers");
+                    let comment = String::from("// Initialized in c2rust_run_static_initializers");
                     let comment_pos = if span.is_dummy() {
                         None
                     } else {
@@ -2652,12 +2652,12 @@ impl<'c> Translation<'c> {
             }
         }
 
-        let current_block_ident = self.renamer.borrow_mut().pick_name("current_block");
+        let current_block_ident = self.renamer.borrow_mut().pick_name("c2rust_current_block");
         let current_block = mk().ident_expr(&current_block_ident);
         let mut stmts: Vec<Stmt> = lifted_stmts;
         if cfg::structures::has_multiple(&relooped) {
             if self.tcfg.fail_on_multiple {
-                panic!("Uses of `current_block' are illegal with `--fail-on-multiple'.");
+                panic!("Uses of `c2rust_current_block' are illegal with `--fail-on-multiple'.");
             }
 
             let current_block_ty = if self.tcfg.debug_relooper_labels {
@@ -2837,7 +2837,7 @@ impl<'c> Translation<'c> {
                 let ConvertedVariable { ty, mutbl: _, init } =
                     self.convert_variable(ctx.static_(), initializer, typ)?;
                 let default_init = self.implicit_default_expr(typ.ctype, true)?.to_expr();
-                let comment = String::from("// Initialized in run_static_initializers");
+                let comment = String::from("// Initialized in c2rust_run_static_initializers");
                 let span = self
                     .comment_store
                     .borrow_mut()

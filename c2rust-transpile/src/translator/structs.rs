@@ -137,7 +137,7 @@ impl<'a> Translation<'a> {
                             && self.ast_context.is_aligned_struct_type(ctype)
                         {
                             // If we're embedding an aligned structure inside a packed one,
-                            // we need to use the `_Inner` version and add padding
+                            // we need to use the `_C2RustInner` version and add padding
                             let decl_id = self
                                 .ast_context
                                 .resolve_type(ctype)
@@ -766,7 +766,7 @@ impl<'a> Translation<'a> {
                         stmts.push(mk().semi_stmt(method_call));
                     }
                     _ if contains_block(&param_expr) => {
-                        let name = self.renamer.borrow_mut().pick_name("rhs");
+                        let name = self.renamer.borrow_mut().pick_name("c2rust_rhs");
                         let name_ident = mk().mutbl().ident_pat(name.clone());
                         let temporary_stmt = mk().local(name_ident, None, Some(param_expr.clone()));
                         let assignment_expr = mk().method_call_expr(
