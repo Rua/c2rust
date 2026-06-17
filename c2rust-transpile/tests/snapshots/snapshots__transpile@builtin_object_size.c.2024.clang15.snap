@@ -17,8 +17,8 @@ pub unsafe extern "C" fn test_builtin_object_size() {
     let mut x: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
     &raw mut x;
     let mut n: ::core::ffi::c_ulong = (if 1 as ::core::ffi::c_int & 2 == 0 {
-        -1isize as ::libc::size_t
+        -1isize as usize
     } else {
-        0isize as ::libc::size_t
+        0usize
     }) as ::core::ffi::c_ulong;
 }
