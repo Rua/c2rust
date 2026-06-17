@@ -16,9 +16,9 @@ expression: cat tests/snapshots/builtin_object_size.2024.clang15.rs
 pub unsafe extern "C" fn test_builtin_object_size() {
     let mut x: ::core::ffi::c_int = 0 as ::core::ffi::c_int;
     &raw mut x;
-    let mut n: ::core::ffi::c_ulong = if 1 as ::core::ffi::c_int & 2 == 0 {
+    let mut n: ::core::ffi::c_ulong = (if 1 as ::core::ffi::c_int & 2 == 0 {
         -1isize as ::libc::size_t
     } else {
         0isize as ::libc::size_t
-    };
+    }) as ::core::ffi::c_ulong;
 }
