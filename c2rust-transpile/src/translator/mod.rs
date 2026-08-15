@@ -179,12 +179,7 @@ impl ExprContext {
             ..self
         }
     }
-    pub fn is_used(&self) -> bool {
-        self.is_used
-    }
-    pub fn is_unused(&self) -> bool {
-        !self.is_used
-    }
+
     pub fn decay_ref(self) -> Self {
         ExprContext {
             decay_ref: DecayRef::Yes,
@@ -3322,10 +3317,10 @@ impl<'c> Translation<'c> {
     /// Translate a C expression into a Rust one, possibly collecting side-effecting statements
     /// to run before the expression.
     ///
-    /// `ctx.is_used()` informs us how the C expression we are translating is used in the C
+    /// `ctx.is_used` informs us how the C expression we are translating is used in the C
     /// program.
     ///
-    /// In the case that `ctx.is_unused()`, all side-effecting components will be in the
+    /// In the case that `!ctx.is_used`, all side-effecting components will be in the
     /// `stmts` field of the output and it is expected that the `val` field of the output will be
     /// ignored.
     ///
@@ -3573,7 +3568,7 @@ impl<'c> Translation<'c> {
                 let lhs = self.convert_expr(ctx, lhs, Some(override_ty.unwrap_or(ty)))?;
                 let rhs = self.convert_expr(ctx, rhs, Some(override_ty.unwrap_or(ty)))?;
 
-                if ctx.is_unused() {
+                if !ctx.is_used {
                     let is_unsafe = lhs.is_unsafe() || rhs.is_unsafe();
                     let then = mk().block(lhs.into_stmts());
                     let else_ = mk().block_expr(mk().block(rhs.into_stmts()));
@@ -3600,7 +3595,7 @@ impl<'c> Translation<'c> {
             BinaryConditional(ty, lhs, rhs) => {
                 let rhs = self.convert_expr(ctx, rhs, None)?;
 
-                if ctx.is_unused() {
+                if !ctx.is_used {
                     let lhs = self
                         .convert_condition(ctx, false, lhs)?
                         .merge_unsafe(rhs.is_unsafe());
@@ -3934,7 +3929,7 @@ impl<'c> Translation<'c> {
         expr: WithStmts<Box<Expr>>,
         panic_msg: &str,
     ) -> WithStmts<Box<Expr>> {
-        if ctx.is_unused() {
+        if !ctx.is_used {
             // Recall that if `!is_used`, the `stmts` field of the output must contain
             // all side-effects (and a function call can always have side-effects)
             expr.and_then(|expr| {
@@ -4004,7 +3999,7 @@ impl<'c> Translation<'c> {
                     match as_semi_break_stmt(&stmt, &lbl) {
                         Some(val) => {
                             let block = mk().block_expr(match val {
-                                Some(val) if ctx.is_used() => WithStmts::new(stmts, val).to_block(),
+                                Some(val) if ctx.is_used => WithStmts::new(stmts, val).to_block(),
                                 _ => mk().block(stmts),
                             });
 
@@ -4033,7 +4028,7 @@ impl<'c> Translation<'c> {
                 ))
             }
             _ => {
-                if ctx.is_unused() {
+                if !ctx.is_used {
                     let val =
                         self.panic_or_err("Empty statement expression is not supposed to be used");
                     Ok(WithStmts::new_val(val))
