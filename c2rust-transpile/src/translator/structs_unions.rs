@@ -1054,7 +1054,7 @@ impl<'a> Translation<'a> {
         lrvalue: LRValue,
         override_ty: Option<CQualTypeId>,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
-        if ctx.is_unused() {
+        if !ctx.is_used {
             return self.convert_expr(ctx, expr, None);
         }
 
