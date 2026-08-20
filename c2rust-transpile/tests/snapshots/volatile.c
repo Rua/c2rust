@@ -11,4 +11,10 @@ void test_volatile(void) {
 
     // https://github.com/immunant/c2rust/issues/1237
     --(volatile_global_struct.p);
+
+    // Unused reads, should be included as side effects.
+    vi;
+    -vi;
+    vi + 1;
+    *pvi;
 }
