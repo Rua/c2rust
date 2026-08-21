@@ -35,7 +35,7 @@ pub unsafe extern "C" fn test_volatile() {
             .offset(-1),
     );
     ::core::ptr::read_volatile::<::core::ffi::c_int>(&raw const vi);
-    -::core::ptr::read_volatile::<::core::ffi::c_int>(&raw const vi);
+    ::core::ptr::read_volatile::<::core::ffi::c_int>(&raw const vi);
     ::core::ptr::read_volatile::<::core::ffi::c_int>(&raw const vi);
     ::core::ptr::read_volatile::<::core::ffi::c_int>(pvi);
 }

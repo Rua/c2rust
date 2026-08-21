@@ -44,12 +44,6 @@ unsafe extern "C" fn lvalue_side_effect() -> *mut ::core::ffi::c_int {
 #[no_mangle]
 pub unsafe extern "C" fn unary_without_side_effect() {
     let mut i: ::core::ffi::c_int = 5 as ::core::ffi::c_int;
-    -i;
-    i;
-    !i;
-    (i == 0) as ::core::ffi::c_int;
-    &raw mut i;
-    i;
     i += 1;
     i -= 1;
     i -= 1;
@@ -58,11 +52,11 @@ pub unsafe extern "C" fn unary_without_side_effect() {
 #[no_mangle]
 pub unsafe extern "C" fn unary_with_side_effect() {
     let mut arr: [*mut ::core::ffi::c_char; 1] = [::core::ptr::null_mut::<::core::ffi::c_char>()];
-    -side_effect();
     side_effect();
-    !side_effect();
-    (side_effect() == 0) as ::core::ffi::c_int;
-    (b"\0".as_ptr() as *const ::core::ffi::c_char).offset(side_effect() as isize);
+    side_effect();
+    side_effect();
+    side_effect();
+    side_effect();
 }
 #[no_mangle]
 pub unsafe extern "C" fn inc_decl_with_rvalue_side_effect() {
