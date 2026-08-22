@@ -313,6 +313,13 @@ fn test_bool() {
 }
 
 #[test]
+fn test_builtin_object_size() {
+    transpile("builtin_object_size.c")
+        .expect_compile_error(true)
+        .run();
+}
+
+#[test]
 fn test_compound_literals() {
     transpile("compound_literals.c").run();
 }
