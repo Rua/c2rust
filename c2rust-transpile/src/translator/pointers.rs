@@ -18,7 +18,7 @@ use crate::{
 impl<'c> Translation<'c> {
     pub fn convert_address_of(
         &self,
-        mut ctx: ExprContext,
+        ctx: ExprContext,
         cqual_type: CQualTypeId,
         arg: CExprId,
     ) -> TranslationResult<WithStmts<Box<Expr>>> {
@@ -41,10 +41,6 @@ impl<'c> Translation<'c> {
                     false,           // don't deref, keep as pointer
                 );
             }
-            // An AddrOf DeclRef/Member is safe to not decay
-            // if the translator isn't already giving a hard yes to decaying (ie, BitCasts).
-            // So we only convert default to no decay.
-            CExprKind::DeclRef(..) | CExprKind::Member(..) => ctx.decay_ref.set_default_to_no(),
             _ => (),
         }
 
@@ -339,8 +335,7 @@ impl<'c> Translation<'c> {
             };
 
             // LHS must be ref decayed for the offset method call's self param
-            let pointer_rs =
-                self.convert_expr(ctx.used().not_needs_address().decay_ref(), pointer_id, None)?;
+            let pointer_rs = self.convert_expr(ctx.used().not_needs_address(), pointer_id, None)?;
             let target_type_id = self.ast_context.type_for_kind(&CTypeKind::SSize);
             let offset_rs = self.convert_expr_with_cast(
                 ctx.used().not_needs_address(),
