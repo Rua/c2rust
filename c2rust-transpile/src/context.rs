@@ -2,24 +2,50 @@ use indexmap::IndexSet;
 
 use crate::c_ast::CDeclId;
 
-/// Options that impact an expression and all of its subexpressions.
+/// The translation context that applies to any item, and is inherited by all child items.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ExprContext {
-    /// We will be referring to the expression by address. In this context we
-    /// can't index arrays because they may legally go out of bounds. We also
-    /// need to explicitly cast function references to fn() so we get their
-    /// address in function pointer literals.
-    is_address_needed: bool,
+pub struct ItemContext {
+    /// Currently converting the macro definition with the given `CDeclId`.
+    converting_macro: Option<CDeclId>,
+}
 
-    is_bitfield_write: bool,
+impl ItemContext {
+    pub(crate) fn is_converting_macro(&self) -> bool {
+        self.converting_macro.is_some()
+    }
+
+    /// Are we expanding the given macro in the current context?
+    pub(crate) fn is_converting_macro_id(&self, mac: CDeclId) -> bool {
+        self.converting_macro == Some(mac)
+    }
+
+    pub(crate) fn converting_macro(self, mac: CDeclId) -> Self {
+        Self {
+            converting_macro: Some(mac),
+        }
+    }
+}
+
+impl From<ExprTreeContext> for ItemContext {
+    fn from(value: ExprTreeContext) -> Self {
+        value.parent
+    }
+}
+
+impl From<ExprContext> for ItemContext {
+    fn from(value: ExprContext) -> Self {
+        value.parent.parent
+    }
+}
+
+/// The translation context that applies to an expression and all of its children.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ExprTreeContext {
+    parent: ItemContext,
 
     /// In a Rust const context, for example in a static initializer or constant-like macro
     /// translation.
     is_const: bool,
-
-    converting_macro: Option<CDeclId>,
-
-    pub(crate) decay_ref: DecayRef,
 
     /// In a context where a pattern is expected, such as for `match` arms.
     /// This restricts what kinds of expressions can be emitted.
@@ -53,6 +79,106 @@ pub struct ExprContext {
     is_used: bool,
 }
 
+impl ExprTreeContext {
+    pub(crate) fn is_const(&self) -> bool {
+        self.is_const
+    }
+
+    pub(crate) fn const_(self) -> Self {
+        Self {
+            is_const: true,
+            ..self
+        }
+    }
+
+    pub(crate) fn not_const(self) -> Self {
+        Self {
+            is_const: false,
+            ..self
+        }
+    }
+
+    pub(crate) fn is_converting_macro(&self) -> bool {
+        self.parent.is_converting_macro()
+    }
+
+    /// Are we expanding the given macro in the current context?
+    pub(crate) fn is_converting_macro_id(&self, mac: CDeclId) -> bool {
+        self.parent.is_converting_macro_id(mac)
+    }
+
+    pub(crate) fn is_pattern(&self) -> bool {
+        self.is_pattern
+    }
+
+    pub(crate) fn pattern(self) -> Self {
+        Self {
+            is_pattern: true,
+            ..self
+        }
+    }
+
+    pub(crate) fn is_static(&self) -> bool {
+        self.is_static
+    }
+
+    pub(crate) fn static_(self) -> Self {
+        Self {
+            is_static: true,
+            ..self
+        }
+    }
+
+    pub(crate) fn is_used(&self) -> bool {
+        self.is_used
+    }
+
+    pub(crate) fn used(self) -> Self {
+        Self {
+            is_used: true,
+            ..self
+        }
+    }
+
+    pub(crate) fn unused(self) -> Self {
+        Self {
+            is_used: false,
+            ..self
+        }
+    }
+}
+
+impl From<ItemContext> for ExprTreeContext {
+    fn from(decl: ItemContext) -> Self {
+        Self {
+            parent: decl,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ExprContext> for ExprTreeContext {
+    fn from(value: ExprContext) -> Self {
+        value.parent
+    }
+}
+
+/// The translation context that applies to single expression.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ExprContext {
+    parent: ExprTreeContext,
+
+    /// We will be referring to the expression by address. In this context we
+    /// can't index arrays because they may legally go out of bounds. We also
+    /// need to explicitly cast function references to fn() so we get their
+    /// address in function pointer literals.
+    is_address_needed: bool,
+
+    is_bitfield_write: bool,
+
+    pub(crate) decay_ref: DecayRef,
+}
+
 impl ExprContext {
     pub(crate) fn is_address_needed(&self) -> bool {
         self.is_address_needed
@@ -84,37 +210,16 @@ impl ExprContext {
     }
 
     pub(crate) fn is_const(&self) -> bool {
-        self.is_const
-    }
-
-    pub(crate) fn const_(self) -> Self {
-        Self {
-            is_const: true,
-            ..self
-        }
-    }
-
-    pub(crate) fn not_const(self) -> Self {
-        Self {
-            is_const: false,
-            ..self
-        }
+        self.parent.is_const()
     }
 
     pub(crate) fn is_converting_macro(&self) -> bool {
-        self.converting_macro.is_some()
+        self.parent.is_converting_macro()
     }
 
     /// Are we expanding the given macro in the current context?
     pub(crate) fn is_converting_macro_id(&self, mac: CDeclId) -> bool {
-        self.converting_macro == Some(mac)
-    }
-
-    pub(crate) fn converting_macro(self, mac: CDeclId) -> Self {
-        Self {
-            converting_macro: Some(mac),
-            ..self
-        }
+        self.parent.is_converting_macro_id(mac)
     }
 
     pub(crate) fn decay_ref(self) -> Self {
@@ -125,49 +230,37 @@ impl ExprContext {
     }
 
     pub(crate) fn is_pattern(&self) -> bool {
-        self.is_pattern
-    }
-
-    pub(crate) fn pattern(self) -> Self {
-        Self {
-            is_pattern: true,
-            ..self
-        }
-    }
-
-    pub(crate) fn not_pattern(self) -> Self {
-        Self {
-            is_pattern: false,
-            ..self
-        }
+        self.parent.is_pattern()
     }
 
     pub(crate) fn is_static(&self) -> bool {
-        self.is_static
-    }
-
-    pub(crate) fn static_(self) -> Self {
-        Self {
-            is_static: true,
-            ..self
-        }
+        self.parent.is_static()
     }
 
     pub(crate) fn is_used(&self) -> bool {
-        self.is_used
+        self.parent.is_used()
     }
 
     pub(crate) fn used(self) -> Self {
         Self {
-            is_used: true,
+            parent: self.parent.used(),
             ..self
         }
     }
 
     pub(crate) fn unused(self) -> Self {
         Self {
-            is_used: false,
+            parent: self.parent.unused(),
             ..self
+        }
+    }
+}
+
+impl From<ExprTreeContext> for ExprContext {
+    fn from(parent: ExprTreeContext) -> Self {
+        Self {
+            parent,
+            ..Default::default()
         }
     }
 }
